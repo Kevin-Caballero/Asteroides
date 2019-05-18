@@ -10,6 +10,8 @@ using namespace std;
 #define DERECHA 77
 #define ABAJO 80
 
+
+/*<FUNCIONES COMUNES>*/
 void GotoXY(int x,int y) {
 	HANDLE hCon;
 	hCon = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -50,9 +52,11 @@ void PintarLimites() {
 	printf("%c", 187);
 	GotoXY(77,33);
 	printf("%c", 188);
-
 }
+/*</FUNCIONES COMUNES>*/
 
+
+/*<CLASE NAVE>*/
 class NAVE {
 	int x, y,corazones,vidas;
 public:
@@ -65,12 +69,13 @@ public:
 	void Morir();
 	int GetX() { return x; }
 	int GetY() { return y; }
+	int GetVidas() { return vidas; }
 };
 
-
+/*<METODOS CLASE NAVE>*/
 void NAVE::Pintar() {
 	GotoXY(x, y);
-	printf("  %c", 30);
+	printf("  %c", 219);
 	GotoXY(x, y+1);
 	printf(" %c%c%c", 40,207,41);
 	GotoXY(x, y+2);
@@ -79,11 +84,11 @@ void NAVE::Pintar() {
 
 void NAVE::Borrar() {
 	GotoXY(x, y);
-	printf("        ");
+	printf("      ");
 	GotoXY(x, y+1);
-	printf("        ");
+	printf("      ");
 	GotoXY(x, y+2);
-	printf("        ");
+	printf("      ");
 }
 
 void NAVE::Mover() {
@@ -105,7 +110,7 @@ void NAVE::PintarCorazones() {
 	GotoXY(50, 2);
 	printf("VIDAS %d", vidas);
 	GotoXY(64,2);
-	printf("VIDAS");
+	printf("SALUD");
 	GotoXY(70, 2);
 	printf("     ");
 	for (int i = 0; i < corazones; i++) {
@@ -141,16 +146,23 @@ void NAVE::Morir() {
 		Pintar();
 	}
 }
+/*</METODOS CLASE NAVE>*/
+/*</CLASE NAVE>*/
 
+
+/*<CLASE ASTEROIDE>*/
 class ASTEROIDE {
 	int x, y;
 public:
 	ASTEROIDE(int x, int y) :x(x), y(y) {};
+	int GetX() { return x; };
+	int GetY() { return y; };
 	void Pintar();
 	void Mover();
 	void Choque(class NAVE &n); //pasar por referencia para modificar valores
 };
 
+/*<METODOS CLASE ASTEROIDE>*/
 void ASTEROIDE::Pintar() {
 	GotoXY(x, y);
 	printf("%c", 184);
@@ -177,28 +189,49 @@ void ASTEROIDE::Choque(class NAVE &n) {
 		y = 4;
 	}
 }
+/*</METODOS CLASE ASTEROIDE>*/
+/*</CLASE ASTEROIDE>*/
 
+
+/*<CLASE DISPARO>*/
 class DISPARO{
 	int x, y;
 public:
 	DISPARO(int x, int y) :x(x), y(y) {};
+	int GetX() { return x; };
+	int GetY() { return y; };
 	void Mover();
+	bool Fuera();
 };
 
+/*<METODOS CLASE DISPARO>*/
 void DISPARO::Mover() {
 	GotoXY(x, y);
 	printf(" ");
-	if (y > 4)
-		y--;
+	y--;
 	GotoXY(x, y);
 	printf("*");
 }
 
+bool DISPARO::Fuera() {
+	if (y == 4) return true;
+	else return false;
+}
+/*</METODOS CLASE DISPARO>*/
+/*</CLASE DISPARO>*/
+
+
 
 int main() {
+	int puntos = 0;
 	bool game_over = false;
+
 	NAVE n(40, 28, 5, 3);
-	ASTEROIDE a(10, 4), a2(4, 8), a3(15, 10), a4(5, 8);
+	list < ASTEROIDE*> A;
+	list < ASTEROIDE*>::iterator itera;
+	for (int i = 0; i < 5; i++) {
+		A.push_back(new ASTEROIDE(rand() % 75 + 3, rand() % 5 + 4));
+	}
 	list < DISPARO*> D;
 	list < DISPARO*>::iterator iter;
 
@@ -208,29 +241,78 @@ int main() {
 	n.PintarCorazones();
 	n.Pintar();
 	while (!game_over) {
-		
-		if (_kbhit) {
+		GotoXY(4, 2);
+		printf("PUNTOS %d", puntos);
+		if (_kbhit()) {
 			char tecla = _getch();
 			if (tecla == 'a') {
 				D.push_back(new DISPARO(n.GetX() + 2, n.GetY() - 1));
 			}
 		}
 
-		for (iter = D.begin(); iter != D.end();iter++) {
+		for (iter = D.begin(); iter != D.end();) {
 			(*iter)->Mover();
+			if ((*iter)->Fuera()) {
+				GotoXY((*iter)->GetX(),(*iter)->GetY());
+				printf(" ");
+				delete(*iter);
+				iter = D.erase(iter);
+			}
+			else iter++;
 		}
 
-		a.Mover();
-		a.Choque(n);
-		a2.Mover();
-		a2.Choque(n);
-		a3.Mover();
-		a3.Choque(n);
-		a4.Mover();
-		a4.Choque(n);
+		for (itera = A.begin(); itera != A.end(); itera++) {
+			(*itera)->Mover();
+			(*itera)->Choque(n);
+		}
 
+		for (itera = A.begin(); itera != A.end(); itera++) { //Rrecorrer lista de asteorides comprobar sus coordenadas y comparar con las coordenadas de la nave
+			for (iter = D.begin(); iter != D.end(); iter++) {
+				if ((*iter)->GetX() == (*itera)->GetX() && ((*itera)->GetY() + 1 == (*iter)->GetY() || (*itera)->GetY() == (*iter)->GetY())) { //si debajo del asteoride hay una bala en la misma columna
+					/*BORRAR DISPARO*/
+					GotoXY((*iter)->GetX(), (*iter)->GetY());
+					printf(" ");
+					delete(*iter);
+					iter = D.erase(iter);
+
+					/*BORRAR ASTEROIDE*/
+					A.push_back(new ASTEROIDE(rand()%74+3,4));
+					GotoXY((*itera)->GetX(), (*itera)->GetY());
+					printf(" ");
+					delete(*itera);
+					itera = A.erase(itera);
+					puntos += 5;
+				}
+			}
+		}
+		if (n.GetVidas() == 0)
+			game_over = true;
 		n.Morir();
 		n.Mover();
-		//Sleep(30); //Dar descanso al procesador por 30 ms
+		Sleep(30); //Dar descanso al procesador por 30 ms
 	}
+	
+	system("cls");
+	GotoXY(22,13);
+	printf(".d8888b. .d8888b. 88d8b.d8b. .d8888b.    ");
+	GotoXY(22, 14);
+	printf("88'  `88 88'  `88 88'`88'`88 88ooood8    ");
+	GotoXY(22, 15);
+	printf("88.  .88 88.  .88 88  88  88 88.  ...    ");
+	GotoXY(22, 16);
+	printf("`8888P88 `88888P8 dP  dP  dP `88888P'    ");
+	GotoXY(22, 17);
+	printf("     .88                                 ");
+	GotoXY(22, 18);
+	printf(" d8888P                                  ");
+
+	GotoXY(22, 20);
+	printf(".d8888b. dP   .dP .d8888b. 88d888b. ");
+	GotoXY(22, 21);
+	printf("88'  `88 88   d8' 88ooood8 88'  `88 ");
+	GotoXY(22, 22);
+	printf("88.  .88 88 .88'  88.  ... 88       ");
+	GotoXY(22, 23);
+	printf("`88888P' 8888P'   `88888P' dP       ");
+	_getch();
 }
